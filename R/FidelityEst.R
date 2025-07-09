@@ -167,8 +167,8 @@ FidelityEst <- function (
         if (rm.zero) {
             if (sum(colSums(rbind(x, y)) == 0) > 0) {
                 good.taxa <- which(colSums(rbind(x, y)) > 0)
-                x <- x[good.taxa]
-                y <- y[good.taxa]
+                x <- x[good.taxa, drop = FALSE]
+                y <- y[good.taxa, drop = FALSE]
                 }
             }
         stats::cor(x, y, method = cor.measure)
