@@ -244,7 +244,7 @@ FidelityEst <- function (
             warning(
                 "Some rarefied correlation coefs returned as NA, converted to zero instead"
                 )
-            cor.ab[is.na(cor.ab)] <- 0
+            cor.ab[is.na(cor.ab)] <- -999
             #stop(paste0("can't calculate correlation for samples: ", 
             #            paste0(which(is.na(cor.ab),",")))
             }
