@@ -141,7 +141,8 @@ FidelityEst <- function (
     min.sam = 30, 
     CI = 0.95,
     rm.zero = FALSE, 
-    tfsd = "none"
+    tfsd = "total",
+    ignore.na = TRUE
     ){
     
     out <- FidelitySummary(
@@ -179,83 +180,93 @@ FidelityEst <- function (
     cor.e <- mapply(function(x, y){my.cor.F(as.vector(x), as.vector(y))}
       , x1, x2)
     
-    x3 <- x1
-    x4 <- x2
-  
-    if (tfsd == "total") {
-        x3 <- vegan::decostand(x1, "total")
-        x4 <- vegan::decostand(x2, "total")
+    #x3 <- x1
+    #x4 <- x2
+    
+    tfsd_standardize <- function(in, tfsd){
+        if (tfsd == "total") {
+            out <- vegan::decostand(in, "total")
+            }
+        if (tfsd == "total4") {
+            out <- vegan::decostand(in, "total")^(1/4)
+            }
+        if (tfsd == "wisconsin") {
+            out <- vegan::wisconsin(in)
+            }
+        if (tfsd == "log") {
+            out <- vegan::decostand(in, "log")
+            }
+        if (tfsd == "r4") {
+            out <- in^0.25
+            }
+        if(tfsd = "none"){
+            out <- in
+            }
+        return(out)
         }
-    if (tfsd == "total4") {
-        x3 <- vegan::decostand(x1, "total")^(1/4)
-        x4 <- vegan::decostand(x2, "total")^(1/4)
-        }
-    if (tfsd == "wisconsin") {
-        x3 <- vegan::wisconsin(x1)
-        x4 <- vegan::wisconsin(x2)
-        }
-    if (tfsd == "log") {
-        x3 <- vegan::decostand(x1, "log")
-        x4 <- vegan::decostand(x2, "log")
-        }
-    if (tfsd == "r4") {
-        x3 <- x1^0.25
-        x4 <- x2^0.25
-        }
+        
+    x3 <- tfsd_standardize(x1, tfsd)
+    x4 <- tfsd_standardize(x2, tfsd)    
 
     sim.e <- mapply(
         function(x, y){ 
             1 - vegan::vegdist(rbind(x, y), method = sim.measure)}
         , x3, x4)
   
-  fid.sam <- cbind(cor.e, sim.e)
-  colnames(fid.sam) <- c(cor.measure, sim.measure)
-  rownames(fid.sam) <- rownames(live)
-  raw.stats <- cbind(mean(cor.e), mean(sim.e))
-  colnames(raw.stats) <- c(cor.measure, sim.measure)
-  rownames(raw.stats) <- "all samples"
+    fid.sam <- cbind(cor.e, sim.e)
+    colnames(fid.sam) <- c(cor.measure, sim.measure)
+    rownames(fid.sam) <- rownames(live)
+    raw.stats <- cbind(mean(cor.e), mean(sim.e))
+    colnames(raw.stats) <- c(cor.measure, sim.measure)
+    rownames(raw.stats) <- "all samples"
   
-  if (length(gp) == 0)
-    mean.gp <- NA
-  if (length(gp) > 0 & nrow(live) > 1) {
-    mean.gp <- cbind(tapply(cor.e, gp, mean), tapply(sim.e,
-                                                     gp, mean))
-    colnames(mean.gp) <- c(cor.measure, sim.measure)
-    raw.stats <- rbind(raw.stats, mean.gp)
-  }
-  
-  raw.x <- cbind(raw.stats[, 1])
-  raw.y <- cbind(raw.stats[, 2])
-  
-  if (iter2 >= 10) {
-    LCL <- (1 - CI)/2
-    UCL <- 1 - LCL
-    
-    fid.subsam <- function(x, y, min) {
-        a <- as.data.frame(t(vegan::rrarefy(x, sample = min)))
-        b <- as.data.frame(t(vegan::rrarefy(y, sample = min)))
-        cor.ab <- mapply(
-            function(x, y){my.cor.F(as.vector(x), as.vector(y))}
-            , a, b)
-        #
-        if(any(is.na(cor.ab))){
-            # NAs mainly occur when too few species are sampled, or
-                # all species are sampled with identical abundance
-            warning(
-                "Some rarefied correlation coefs returned as NA, converted to zero instead"
-                )
-            cor.ab[is.na(cor.ab)] <- -999
-            #stop(paste0("can't calculate correlation for samples: ", 
-            #            paste0(which(is.na(cor.ab),",")))
-            }
-        #
-        sim.ab <- mapply(
-          function(x, y){
-            1 - vegan::vegdist(rbind(x, y), method = sim.measure)
-            }
-          , a, b)
-        cbind(cor.ab, sim.ab)
+    if (length(gp) == 0){
+        mean.gp <- NA
         }
+    
+    if (length(gp) > 0 & nrow(live) > 1) {
+        mean.gp <- cbind(
+            tapply(cor.e, gp, mean), 
+            tapply(sim.e, gp, mean)
+            )
+        colnames(mean.gp) <- c(cor.measure, sim.measure)
+        raw.stats <- rbind(raw.stats, mean.gp)
+        }
+  
+    raw.x <- cbind(raw.stats[, 1])
+    raw.y <- cbind(raw.stats[, 2])
+  
+    if (iter2 >= 10) {
+    
+        fid.subsam <- function(x, y, min) {
+            a <- as.data.frame(t(vegan::rrarefy(x, sample = min)))
+            b <- as.data.frame(t(vegan::rrarefy(y, sample = min)))
+            cor.ab <- mapply(
+                function(x, y){my.cor.F(as.vector(x), as.vector(y))}
+                , a, b)
+            #
+            #if(any(is.na(cor.ab))){
+            #    # NAs mainly occur when too few species are sampled, or
+            #        # all species are sampled with identical abundance
+            #    warning(
+            #        "Some rarefied correlation coefs returned as NA, converted to zero instead"
+            #        )
+            #    cor.ab[is.na(cor.ab)] <- -999
+            #    #stop(paste0("can't calculate correlation for samples: ", 
+            #    #            paste0(which(is.na(cor.ab),",")))
+            #    }
+            #
+            
+            sim.ab <- mapply(
+              function(x, y){
+                1 - vegan::vegdist(
+                    rbind(tfsd_standardize(x, tfsd), 
+                          tfsd_standardize(y, tfsd)), 
+                    method = sim.measure)
+                }
+              , a, b)
+            cbind(cor.ab, sim.ab)
+            }
   
     outSS <- array(NA, dim = c(nrow(live), 2, iter2))
     
@@ -265,13 +276,20 @@ FidelityEst <- function (
             min = min.sam
             )
         }
-    
+        
+    #if CI is not NA
+    #if(!is.na(CI)){
+
+    LCL <- (1 - CI)/2
+    UCL <- 1 - LCL
+
     SSCOR <- cbind(
         est = rowMeans(rbind(outSS[, 1, ])), 
         t(apply(
             rbind(outSS[,1, ]), 1, 
             stats::quantile, 
-            prob = c((1 - CI)/2, 1-(1-CI)/2)
+            prob = c((1 - CI)/2, 1-(1-CI)/2),
+            na.rm = ignore.na
             )), 
         n.std = min.sam)
     
@@ -280,7 +298,8 @@ FidelityEst <- function (
         t(apply(
             rbind(outSS[,2, ]), 1, 
             stats::quantile, 
-            prob = c((1 - CI)/2, 1 - (1 - CI)/2)
+            prob = c((1 - CI)/2, 1 - (1 - CI)/2),
+            na.rm = ignore.na
             )), 
         n.std = min.sam)
     
@@ -309,8 +328,12 @@ FidelityEst <- function (
         yss <- mean(outSS[, 2, ])
         )
 
-    xss2 <- stats::quantile(xss, prob = c(LCL, 0.5, UCL))
-    yss2 <- stats::quantile(yss, prob = c(LCL, 0.5, UCL))
+    xss2 <- stats::quantile(xss, 
+        prob = c(LCL, 0.5, UCL),
+        na.rm = ignore.na)
+    yss2 <- stats::quantile(yss, 
+        prob = c(LCL, 0.5, UCL),
+        na.rm = ignore.na)
 
     xs.stat <- cbind(mean = mean(xss), LCL = xss2[1],
                           median = xss2[2], UCL = xss2[3])
@@ -319,38 +342,42 @@ FidelityEst <- function (
     ys.stat <- cbind(mean = mean(yss), LCL = yss2[1],
                      median = yss2[2], UCL = yss2[3])
     rownames(ys.stat) <- "all samples"
-    
+        
     if (length(gp) > 0 & nrow(live) > 1) {
-      xsg <- apply(
+        xsg <- apply(
           outSS[, 1, ], 2, 
           function(x) tapply(x, gp, mean))
-      xsg2 <- t(rbind(
+        xsg2 <- t(rbind(
           apply(xsg, 1, mean), 
           apply(xsg, 1, 
                 stats::quantile, 
-                prob = c(LCL, 0.5, UCL))
+                prob = c(LCL, 0.5, UCL),
+                na.rm = ignore.na)
           ))
-      colnames(xsg2) <- c("mean", "LCL", "median", "UCL")
-      
-      xs.stat <- rbind(`all samples` = xs.stat, xsg2)
-      
-      ysg <- apply(outSS[, 2, ], 2, 
+        colnames(xsg2) <- c("mean", "LCL", "median", "UCL")
+        
+        xs.stat <- rbind(`all samples` = xs.stat, xsg2)
+        
+        ysg <- apply(outSS[, 2, ], 2, 
                    function(x) tapply(x, gp, mean)
                    )
-
-      ysg2 <- t(rbind(
+        
+        ysg2 <- t(rbind(
           apply(ysg, 1, mean), 
-          apply(ysg, 1, stats::quantile, prob = c(LCL, 0.5, UCL))
+          apply(ysg, 1, stats::quantile, 
+                prob = c(LCL, 0.5, UCL),
+                na.rm = ignore.na)
           ))
-      
-      colnames(ysg2) <- c("mean", "LCL", "median", "UCL")
-      
-      ys.stat <- rbind(`all samples` = ys.stat, ysg2)
-      }
+        
+        colnames(ysg2) <- c("mean", "LCL", "median", "UCL")
+        
+        ys.stat <- rbind(`all samples` = ys.stat, ysg2)
+        }
 
     colnames(xs.stat)[c(2, 4)] <- c(paste(LCL), paste(UCL))
     colnames(ys.stat)[c(2, 4)] <- c(paste(LCL), paste(UCL))
 
+    
     ss.cor.rep <- t(outSS[, 1, ])
     ss.sim.rep <- t(outSS[, 2, ])
 
@@ -367,35 +394,14 @@ FidelityEst <- function (
             rdead <- as.vector(
                 vegan::rrarefy(x = pooled, sum(dead))
                 )
-      r.cor.e = my.cor.F(rlive, rdead)
-      rx3 <- rlive
-      rx4 <- rdead
-      
-      if (tfsd == "total") {
-        rx3 <- vegan::decostand(rlive, "total")
-        rx4 <- vegan::decostand(rdead, "total")
+        r.cor.e = my.cor.F(rlive, rdead)
+        rx3 <- tfsd_standardize(rlive, tfsd)
+        rx4 <- tfsd_standardize(rdead, tfsd)
+
+        r.sim.e = 1 - vegan::vegdist(t(cbind(rx3, rx4)),
+            method = sim.measure)
+        return(c(r.cor.e, r.sim.e))
         }
-      if (tfsd == "total4") {
-        rx3 <- vegan::decostand(rlive, "total")^(1/4)
-        rx4 <- vegan::decostand(rdead, "total")^(1/4)
-        }
-      if (tfsd == "wisconsin") {
-        rx3 <- vegan::wisconsin(rlive)
-        rx4 <- vegan::wisconsin(rdead)
-        }
-      if (tfsd == "log") {
-        rx3 <- vegan::decostand(rlive, "log")
-        rx4 <- vegan::decostand(rdead, "log")
-      }
-      if (tfsd == "r4") {
-        rx3 <- rlive^0.25
-        rx4 <- rdead^0.25
-        }
-      
-      r.sim.e = 1 - vegan::vegdist(t(cbind(rx3, rx4)),
-                                   method = sim.measure)
-      return(c(r.cor.e, r.sim.e))
-    }
     pf.output <- array(0, dim = c(iter, nrow(live), 2), 
         dimnames = list(1:iter, rownames(live), c(cor.measure, sim.measure)))
     for (i in 1:iter) {
@@ -422,18 +428,30 @@ FidelityEst <- function (
     sim.adj.sam <- apply(sim.m.adj, 2, mean)
     
     cor.adj.sam.CI <- apply(cor.m.adj, 2, 
-        stats::quantile, prob = c(LCL, UCL))
+        stats::quantile, 
+        prob = c(LCL, UCL),
+        na.rm = ignore.na
+        )
     sim.adj.sam.CI <- apply(sim.m.adj, 2, 
-        stats::quantile, prob = c(LCL, UCL))
+        stats::quantile, 
+        prob = c(LCL, UCL),
+        na.rm = ignore.na
+        )
     
     corrected <- cbind(cor.adj.sam, sim.adj.sam)
     corrected.mean <- c(mean(cor.m.adj), mean(sim.m.adj))
     
     names(corrected.mean) <- c(cor.measure, sim.measure)
     xc.stat <- c(mean(corrected[, 1]), 
-        stats::quantile(corrected[, 1], prob = c(LCL, 0.5, UCL)))
+        stats::quantile(corrected[, 1], 
+            prob = c(LCL, 0.5, UCL),
+            na.rm = ignore.na
+            ))
     yc.stat <- c(mean(corrected[, 2]), 
-        stats::quantile(corrected[, 2], prob = c(LCL, 0.5, UCL)))
+        stats::quantile(corrected[, 2], 
+            prob = c(LCL, 0.5, UCL),
+            na.rm = ignore.na
+            ))
     
     if (length(gp) == 0) {
         xc.stat <- rbind(xc.stat)
@@ -448,12 +466,14 @@ FidelityEst <- function (
     if (length(gp) > 0 & nrow(live) > 1) {
       statsgp.x1 <- tapply(corrected[, 1], gp, mean)
       statsgp.x2 <- tapply(corrected[, 1], gp, stats::quantile,
-        prob = c(LCL, 0.5, UCL))
+        prob = c(LCL, 0.5, UCL),
+        na.rm = ignore.na)
       statsgp.x3 <- cbind(statsgp.x1, matrix(unlist(statsgp.x2),
         length(levels(gp)), 3, byrow = T))
       statsgp.y1 <- tapply(corrected[, 2], gp, mean)
       statsgp.y2 <- tapply(corrected[, 2], gp, stats::quantile,
-        prob = c(LCL, 0.5, UCL))
+        prob = c(LCL, 0.5, UCL),
+        na.rm = ignore.na)
       statsgp.y3 <- cbind(statsgp.y1, 
         matrix(unlist(statsgp.y2),
         length(levels(gp)), 3, byrow = T))
