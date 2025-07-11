@@ -237,6 +237,18 @@ FidelityEst <- function (
         cor.ab <- mapply(
             function(x, y){my.cor.F(as.vector(x), as.vector(y))}
             , a, b)
+        #
+        if(any(is.na(cor.ab))){
+            # NAs mainly occur when too few species are sampled, or
+                # all species are sampled with identical abundance
+            warning(
+                "Some rarefied correlation coefs returned as NA, converted to zero instead"
+                )
+            cor.ab[is.na(cor.ab)] <- 0
+            #stop(paste0("can't calculate correlation for samples: ", 
+            #            paste0(which(is.na(cor.ab),",")))
+            }
+        #
         sim.ab <- mapply(
           function(x, y){
             1 - vegan::vegdist(rbind(x, y), method = sim.measure)
