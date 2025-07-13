@@ -119,8 +119,10 @@ FidelityDiv <- function(live, dead, gp=NULL, report=FALSE, n.filters=2, t.filter
   delta.alpha <- function(x, y, min) {
     a <- suppressWarnings(vegan::rrarefy(x, sample=min))
     b <- suppressWarnings(vegan::rrarefy(y, sample=min))
-    cbind(log(apply(b, 1, function(z) sum(z > 0))) - log(apply(a, 1, function(z) sum(z > 0))),
-    apply(b, 1, pie.f) - apply(a, 1, pie.f))
+    cbind(
+        log(apply(b, 1, function(z) sum(z > 0))) - log(apply(a, 1, function(z) sum(z > 0))),
+        apply(b, 1, pie.f) - apply(a, 1, pie.f)
+        )
   }
   min.sam <- apply(cbind(rowSums(live), rowSums(dead)), 1, min)
   out1 <- array(NA, dim=c(nrow(live), 2, iter))
