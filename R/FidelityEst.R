@@ -177,30 +177,33 @@ FidelityEst <- function (
 
     x1 <- as.data.frame(t(live))
     x2 <- as.data.frame(t(dead))
-    cor.e <- mapply(function(x, y){my.cor.F(as.vector(x), as.vector(y))}
-      , x1, x2)
+    cor.e <- mapply(
+        function(x, y){
+            my.cor.F(as.vector(x), as.vector(y))
+            }
+        , x1, x2)
     
     #x3 <- x1
     #x4 <- x2
     
-    tfsd_standardize <- function(in, tfsd){
+    tfsd_standardize <- function(input, tfsd){
         if (tfsd == "total") {
-            out <- vegan::decostand(in, "total")
+            out <- vegan::decostand(input, "total")
             }
         if (tfsd == "total4") {
-            out <- vegan::decostand(in, "total")^(1/4)
+            out <- vegan::decostand(input, "total")^(1/4)
             }
         if (tfsd == "wisconsin") {
-            out <- vegan::wisconsin(in)
+            out <- vegan::wisconsin(input)
             }
         if (tfsd == "log") {
-            out <- vegan::decostand(in, "log")
+            out <- vegan::decostand(input, "log")
             }
         if (tfsd == "r4") {
-            out <- in^0.25
+            out <- input^0.25
             }
         if(tfsd = "none"){
-            out <- in
+            out <- input
             }
         return(out)
         }
