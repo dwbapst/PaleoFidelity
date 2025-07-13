@@ -202,7 +202,7 @@ FidelityEst <- function (
         if (tfsd == "r4") {
             out <- input^0.25
             }
-        if(tfsd = "none"){
+        if(tfsd == "none"){
             out <- input
             }
         return(out)
