@@ -142,6 +142,7 @@ FidelityEst <- function (
     CI = 0.95,
     rm.zero = TRUE, 
     tfsd = "total",
+    perf.rescale = "scale",
     ignore.na = TRUE
     ){
     
@@ -449,11 +450,22 @@ FidelityEst <- function (
     sim.obs.rep <- matrix(fid.sam[, 2], iter, 
         length(fid.sam[, 2]), byrow = T)
     
-    cor.m.adj <- (1 - pf.output[, , 1]) + cor.obs.rep
-    sim.m.adj <- (1 - pf.output[, , 2]) + sim.obs.rep
+    # perfect fidelity rescaling
+    if(perf.rescale == "shift"){
+        cor.m.adj <- (1 - pf.output[, , 1]) + cor.obs.rep
+        sim.m.adj <- (1 - pf.output[, , 2]) + sim.obs.rep
     
-    cor.m.adj[cor.m.adj > 1] <- 1
-    sim.m.adj[sim.m.adj > 1] <- 1
+        cor.m.adj[cor.m.adj > 1] <- 1
+        sim.m.adj[sim.m.adj > 1] <- 1
+        }
+    
+    if(perf.rescale == "scale"){
+        cor.m.adj <- (cor.obs.rep + 1)/2
+        cor.m.adj <- cor.m.adj/((pf.output[, , 1]+1)/2)
+        cor.m.adj <- (cor.m.adj*2)-1
+        
+        sim.m.adj <- sim.obs.rep/pf.output[, , 2]
+        }
     
     cor.adj.sam <- apply(cor.m.adj, 2, mean)
     sim.adj.sam <- apply(sim.m.adj, 2, mean)
