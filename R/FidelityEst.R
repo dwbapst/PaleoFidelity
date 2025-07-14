@@ -140,7 +140,7 @@ FidelityEst <- function (
     iter2 = 10, 
     min.sam = 30, 
     CI = 0.95,
-    rm.zero = FALSE, 
+    rm.zero = TRUE, 
     tfsd = "total",
     ignore.na = TRUE
     ){
@@ -175,18 +175,20 @@ FidelityEst <- function (
         stats::cor(x, y, method = cor.measure)
         }
 
-    x1 <- as.data.frame(t(live))
-    x2 <- as.data.frame(t(dead))
     cor.e <- mapply(
         function(x, y){
             my.cor.F(as.vector(x), as.vector(y))
-            }
-        , x1, x2)
-    
-    #x3 <- x1
-    #x4 <- x2
+            }, 
+        as.data.frame(t(live)), 
+        as.data.frame(t(dead))
+        )
     
     tfsd_standardize <- function(input, tfsd){
+        if(all(tfsd != 
+               c("total", "total4", "wisconsin", "log", "r4", "none"))){
+            stop("tfsd is not an allowed option")
+            }
+        #
         if (tfsd == "total") {
             out <- vegan::decostand(input, "total")
             }
@@ -205,17 +207,25 @@ FidelityEst <- function (
         if(tfsd == "none"){
             out <- input
             }
+        if(is.null(out)){
+            stop("bad transform")
+            }
+        #if(any(rowSums(out) < 1)){
+        #    stop("why are there empty rows in out")}
         return(out)
         }
         
-    x3 <- tfsd_standardize(x1, tfsd)
-    x4 <- tfsd_standardize(x2, tfsd)    
+    x3 <- tfsd_standardize(live, tfsd)
+    x4 <- tfsd_standardize(dead, tfsd)    
 
     sim.e <- mapply(
         function(x, y){ 
-            1 - vegan::vegdist(rbind(x, y), method = sim.measure)}
-        , x3, x4)
-  
+            1 - vegan::vegdist(rbind(x, y), method = sim.measure)
+            }, 
+        as.data.frame(t(x3)), 
+        as.data.frame(t(x4))
+        )
+    
     fid.sam <- cbind(cor.e, sim.e)
     colnames(fid.sam) <- c(cor.measure, sim.measure)
     rownames(fid.sam) <- rownames(live)
@@ -242,11 +252,15 @@ FidelityEst <- function (
     if (iter2 >= 10) {
     
         fid.subsam <- function(x, y, min) {
-            a <- as.data.frame(t(vegan::rrarefy(x, sample = min)))
-            b <- as.data.frame(t(vegan::rrarefy(y, sample = min)))
+            a <- suppressWarnings(vegan::rrarefy(x, sample = min))
+            b <- suppressWarnings(vegan::rrarefy(y, sample = min))
             cor.ab <- mapply(
-                function(x, y){my.cor.F(as.vector(x), as.vector(y))}
-                , a, b)
+                function(x, y){
+                    my.cor.F(as.vector(x), as.vector(y))
+                    }, 
+                as.data.frame(t(a)), 
+                as.data.frame(t(b))
+            )
             #
             #if(any(is.na(cor.ab))){
             #    # NAs mainly occur when too few species are sampled, or
@@ -260,15 +274,29 @@ FidelityEst <- function (
             #    }
             #
             
+            #if(any(rowSums(a))<1){
+            #    stop("why are there empty rows in a")}
+            #if(any(rowSums(b))<1){
+            #    stop("why are there empty rows in b")}               
+            
+            c <- tfsd_standardize(x, tfsd)
+            d <- tfsd_standardize(y, tfsd)
+            
             sim.ab <- mapply(
               function(x, y){
                 1 - vegan::vegdist(
-                    rbind(tfsd_standardize(x, tfsd), 
-                          tfsd_standardize(y, tfsd)), 
+                    rbind(x,y), 
                     method = sim.measure)
-                }
-              , a, b)
-            cbind(cor.ab, sim.ab)
+              }, 
+              as.data.frame(t(c)), 
+              as.data.frame(t(d))
+            )
+            
+            #if(length(cor.ab)<ncol(a)){stop("woopsie")}
+            #if(length(sim.ab)<ncol(b)){stop("oopsie")}
+            
+            out <- cbind(cor.ab, sim.ab)
+            return(out)
             }
   
     outSS <- array(NA, dim = c(nrow(live), 2, iter2))
