@@ -454,9 +454,6 @@ FidelityEst <- function (
     if(perf.rescale == "shift"){
         cor.m.adj <- (1 - pf.output[, , 1]) + cor.obs.rep
         sim.m.adj <- (1 - pf.output[, , 2]) + sim.obs.rep
-    
-        cor.m.adj[cor.m.adj > 1] <- 1
-        sim.m.adj[sim.m.adj > 1] <- 1
         }
     
     if(perf.rescale == "scale"){
@@ -466,6 +463,9 @@ FidelityEst <- function (
         
         sim.m.adj <- sim.obs.rep/pf.output[, , 2]
         }
+    
+    cor.m.adj[cor.m.adj > 1] <- 1
+    sim.m.adj[sim.m.adj > 1] <- 1
     
     cor.adj.sam <- apply(cor.m.adj, 2, mean)
     sim.adj.sam <- apply(sim.m.adj, 2, mean)
