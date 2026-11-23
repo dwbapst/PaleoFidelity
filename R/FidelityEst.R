@@ -78,6 +78,11 @@
 #' 'total' - relative abundance, 'wisconsin' - double relativization,
 #' 'r4' - 4th root transformation, 'log' - ecological log-transformation,
 #' 'total4' - 4th root transformation of relative abundances.
+#' 
+#' @param perf.rescale 
+#' 
+#' @param ignore.na Should /code{NA}s in the data be ignore for calculating quantiles?  
+#' Probably, if we want to calculate quantiles. The default is /code{TRUE}.
 #'
 #' @return A list containing the following components:
 #'   \item{x}{Live-dead correlation coefficients for each site}
@@ -378,13 +383,27 @@ FidelityEst <- function (
     if (length(gp) > 0 & nrow(live) > 1) {
         xsg <- apply(
           outSS[, 1, ], 2, 
-          function(x) tapply(x, gp, mean))
+          function(x) tapply(x, gp, mean)
+          )
         xsg2 <- t(rbind(
           apply(xsg, 1, mean), 
           apply(xsg, 1, 
                 stats::quantile, 
                 prob = c(LCL, 0.5, UCL),
                 na.rm = ignore.na)
+                )) #}
+    for (i in 1:iter) {
+        for (j in 1:nrow(live)) {
+            pf.output[i, j, ] <- FidPerfModel(rbind(live[j,
+            ]), rbind(dead[j, ]))
+            }
+        }
+    
+    perfidest <- apply(pf.output, c(2, 3), stats::median)
+    
+    cor.obs.rep <- matrix(fid.sam[, 1], iter, 
+        length(fid.sam[, 1]), byrow = TRUE)
+    sim.obs.rep <- matrix(fid.sam[, 2], iter, 
           ))
         colnames(xsg2) <- c("mean", "LCL", "median", "UCL")
         
@@ -418,6 +437,7 @@ FidelityEst <- function (
     }
 
     if (iter >= 10) {
+
         FidPerfModel <- function(live, dead) {
             pooled <- live + dead
             rlive <- as.vector(
@@ -434,24 +454,41 @@ FidelityEst <- function (
             method = sim.measure)
         return(c(r.cor.e, r.sim.e))
         }
-    pf.output <- array(0, dim = c(iter, nrow(live), 2), 
-        dimnames = list(1:iter, rownames(live), c(cor.measure, sim.measure)))
-    for (i in 1:iter) {
-        for (j in 1:nrow(live)) {
-            pf.output[i, j, ] <- FidPerfModel(rbind(live[j,
-            ]), rbind(dead[j, ]))
-            }
-        }
+
+        pf.output <- array( 0, 
+            dim = c(iter, nrow(live), 2), 
+            dimnames = list(1:iter, rownames(live), c(cor.measure, sim.measure)))
+        for (i in 1:iter) {
+            for (j in 1:nrow(live)) {
+                pf.output[i, j, ] <- FidPerfModel(
+                    rbind(live[j,]), 
+                    rbind(dead[j, ])
+                    )
+                }
+                }
     
-    perfidest <- apply(pf.output, c(2, 3), stats::median)
+        perfidest <- apply(pf.output, c(2, 3), stats::median)
     
-    cor.obs.rep <- matrix(fid.sam[, 1], iter, 
-        length(fid.sam[, 1]), byrow = T)
+        cor.obs.rep <- matrix(fid.sam[, 1], iter, 
+        length(fid.sam[, 1]), byrow = TRUE)
     sim.obs.rep <- matrix(fid.sam[, 2], iter, 
-        length(fid.sam[, 2]), byrow = T)
+        length(fid.sam[, 2]), byrow = TRUE)
     
     # perfect fidelity rescaling
+        # how to rescale the fidelity to achievable perfection?
+    # perfection estimated by poOling individuals in a given live-dead pair
+        # resampling pooled data at samples size of original assemblages in each pair without replacement
+        # obtain the maximum possible fidelity from the data given the number of species overall, individuals in each sample, etc
+        # following Tyler and Kowalewski 2023
+    # but what to do with perfection?
+        # do we just add the difference between 1 and the maximum possible fidelity to all fidelity estimates, shifting everything upwards?
+            # For datasets with high fidelity, this can shift everything very high, beyond 1, 
+                # or shift things that have negative fidelity to positive fidelity (when fidelity is measured between -1 and 1)
+            # perf.rescale = "shift"
+        # or do we rescale all the fidelity measures so the interval they fall out on a scale where the center remains at 0 (neutral fidelity) ?
+
     if(perf.rescale == "shift"){
+        # shift - the difference between 1 
         cor.m.adj <- (1 - pf.output[, , 1]) + cor.obs.rep
         sim.m.adj <- (1 - pf.output[, , 2]) + sim.obs.rep
         }
@@ -512,14 +549,14 @@ FidelityEst <- function (
         prob = c(LCL, 0.5, UCL),
         na.rm = ignore.na)
       statsgp.x3 <- cbind(statsgp.x1, matrix(unlist(statsgp.x2),
-        length(levels(gp)), 3, byrow = T))
+        length(levels(gp)), 3, byrow = TRUE))
       statsgp.y1 <- tapply(corrected[, 2], gp, mean)
       statsgp.y2 <- tapply(corrected[, 2], gp, stats::quantile,
         prob = c(LCL, 0.5, UCL),
         na.rm = ignore.na)
       statsgp.y3 <- cbind(statsgp.y1, 
         matrix(unlist(statsgp.y2),
-        length(levels(gp)), 3, byrow = T))
+        length(levels(gp)), 3, byrow = TRUE))
       xc.stat <- rbind(all.samples = xc.stat, statsgp.x3)
       yc.stat <- rbind(all.samples = yc.stat, statsgp.y3)
       colnames(xc.stat) <- c("mean", paste(LCL),
