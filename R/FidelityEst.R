@@ -69,20 +69,38 @@
 #' resampled estimates of sample-standardized, bias-corrected, or 'perfect fidelity'
 #' measures of correlation/similarity.
 #'
-#' @param rm.zero Logical (default rm.zero = FALSE) removes double 0's when
+#' @param rm.zero Logical (default is  \code{rm.zero = TRUE}) removes double 0's when
 #' computing correlation measure.
 #'
-#' @param tfsd A character string (default='none') specifying data standardization
+#' @param tfsd A character string (default \code{= 'none'}) specifying data standardization
 #' or transformations (applicable only for some similarity measure).The following options are
-#' available: 'none' (or any unused character string) - no standardization/transformation,
-#' 'total' - relative abundance, 'wisconsin' - double relativization,
-#' 'r4' - 4th root transformation, 'log' - ecological log-transformation,
-#' 'total4' - 4th root transformation of relative abundances.
+#' available: 
+#' \code{'none'} (or any unused character string) - no standardization/transformation,
+#' \code{'total'} - relative abundance, 
+#' \code{'wisconsin'} - double relativization,
+#' \code{'r4'} - 4th root transformation, 
+#' \code{'log'} - ecological log-transformation,
+#' \code{'total4'} - 4th root transformation of relative abundances.
 #' 
 #' @param perf.rescale 
+#' How should fidelity be rescaled to account for an achievable level of perfection, 
+#' by pooling individuals in a given live-dead pair?
+#' Resampling pooled data at the same sample size of the original assemblage in each pair without replacment
+#' will obtain the maximum possible fidelity from the data given the number of species overall, 
+#' individuals in each sample, etc.  
+#' The default is \code{'scale'}, which rescales all fidelity measures so the interval 
+#' into which they fall is scaled such that the center (neutral fidelity) remains at zero.
+#' The alternative method is \code{'shift'}, 
+#' following a procedure from Tyler and Kowalewski 2023, which
+#' adds the difference between 1 and the maximum possible fidelity to all fidelity estimates,
+#' shifting all fidelity values upwards. For data sets with high fidelity, 
+#' this can shift everything very high,
+#' beyond 1.0, or shift estimates that have negative fidelity for 
+#' measures scaled between -1 and 1 (and thus reflect fidelity worse 
+#' than neutral fidelity) to positive fidelity values. 
 #' 
-#' @param ignore.na Should /code{NA}s in the data be ignore for calculating quantiles?  
-#' Probably, if we want to calculate quantiles. The default is /code{TRUE}.
+#' @param ignore.na Should \code{NA}s in the data be ignored for calculating quantiles?  
+#' Probably, if we want to calculate quantiles at all. The default is \code{TRUE}.
 #'
 #' @return A list containing the following components:
 #'   \item{x}{Live-dead correlation coefficients for each site}
@@ -392,19 +410,7 @@ FidelityEst <- function (
                 prob = c(LCL, 0.5, UCL),
                 na.rm = ignore.na)
                 )) #}
-    for (i in 1:iter) {
-        for (j in 1:nrow(live)) {
-            pf.output[i, j, ] <- FidPerfModel(rbind(live[j,
-            ]), rbind(dead[j, ]))
-            }
-        }
-    
-    perfidest <- apply(pf.output, c(2, 3), stats::median)
-    
-    cor.obs.rep <- matrix(fid.sam[, 1], iter, 
-        length(fid.sam[, 1]), byrow = TRUE)
-    sim.obs.rep <- matrix(fid.sam[, 2], iter, 
-          ))
+   
         colnames(xsg2) <- c("mean", "LCL", "median", "UCL")
         
         xs.stat <- rbind(`all samples` = xs.stat, xsg2)
@@ -446,18 +452,20 @@ FidelityEst <- function (
             rdead <- as.vector(
                 vegan::rrarefy(x = pooled, sum(dead))
                 )
-        r.cor.e = my.cor.F(rlive, rdead)
-        rx3 <- tfsd_standardize(rlive, tfsd)
-        rx4 <- tfsd_standardize(rdead, tfsd)
+            r.cor.e = my.cor.F(rlive, rdead)
+            rx3 <- tfsd_standardize(rlive, tfsd)
+            rx4 <- tfsd_standardize(rdead, tfsd)
 
-        r.sim.e = 1 - vegan::vegdist(t(cbind(rx3, rx4)),
-            method = sim.measure)
-        return(c(r.cor.e, r.sim.e))
-        }
+            r.sim.e = 1 - vegan::vegdist(t(cbind(rx3, rx4)),
+                method = sim.measure)
+            return(c(r.cor.e, r.sim.e))
+            }
 
         pf.output <- array( 0, 
             dim = c(iter, nrow(live), 2), 
-            dimnames = list(1:iter, rownames(live), c(cor.measure, sim.measure)))
+            dimnames = list(1:iter, 
+                rownames(live), c(cor.measure, sim.measure))
+            )
         for (i in 1:iter) {
             for (j in 1:nrow(live)) {
                 pf.output[i, j, ] <- FidPerfModel(
@@ -470,121 +478,132 @@ FidelityEst <- function (
         perfidest <- apply(pf.output, c(2, 3), stats::median)
     
         cor.obs.rep <- matrix(fid.sam[, 1], iter, 
-        length(fid.sam[, 1]), byrow = TRUE)
-    sim.obs.rep <- matrix(fid.sam[, 2], iter, 
-        length(fid.sam[, 2]), byrow = TRUE)
+            length(fid.sam[, 1]), byrow = TRUE)
+        sim.obs.rep <- matrix(fid.sam[, 2], iter, 
+            length(fid.sam[, 2]), byrow = TRUE)
     
-    # perfect fidelity rescaling
-        # how to rescale the fidelity to achievable perfection?
-    # perfection estimated by poOling individuals in a given live-dead pair
-        # resampling pooled data at samples size of original assemblages in each pair without replacement
-        # obtain the maximum possible fidelity from the data given the number of species overall, individuals in each sample, etc
-        # following Tyler and Kowalewski 2023
-    # but what to do with perfection?
-        # do we just add the difference between 1 and the maximum possible fidelity to all fidelity estimates, shifting everything upwards?
-            # For datasets with high fidelity, this can shift everything very high, beyond 1, 
-                # or shift things that have negative fidelity to positive fidelity (when fidelity is measured between -1 and 1)
-            # perf.rescale = "shift"
-        # or do we rescale all the fidelity measures so the interval they fall out on a scale where the center remains at 0 (neutral fidelity) ?
-
-    if(perf.rescale == "shift"){
-        # shift - the difference between 1 
-        cor.m.adj <- (1 - pf.output[, , 1]) + cor.obs.rep
-        sim.m.adj <- (1 - pf.output[, , 2]) + sim.obs.rep
-        }
+        # perfect fidelity rescaling
+            # how to rescale the fidelity to achievable perfection?
+        # perfection estimated by poOling individuals in a given live-dead pair
+            # resampling pooled data at samples size of original assemblages in each pair without replacement
+            # obtain the maximum possible fidelity from the data given the number of species overall, individuals in each sample, etc
+            # following Tyler and Kowalewski 2023
+        # but what to do with perfection?
+            # do we just add the difference between 1 and the maximum possible fidelity to all fidelity estimates, shifting everything upwards?
+                # For datasets with high fidelity, this can shift everything very high, beyond 1, 
+                    # or shift things that have negative fidelity to positive fidelity (when fidelity is measured between -1 and 1)
+                # perf.rescale = "shift"
+            # or do we rescale all the fidelity measures so the interval they fall out on a scale where the center remains at 0 (neutral fidelity) ?
     
-    if(perf.rescale == "scale"){
-        cor.m.adj <- (cor.obs.rep + 1)/2
-        cor.m.adj <- cor.m.adj/((pf.output[, , 1]+1)/2)
-        cor.m.adj <- (cor.m.adj*2)-1
+        if(perf.rescale == "shift"){
+            # shift - the difference between 1 
+            cor.m.adj <- (1 - pf.output[, , 1]) + cor.obs.rep
+            sim.m.adj <- (1 - pf.output[, , 2]) + sim.obs.rep
+            }
         
-        sim.m.adj <- sim.obs.rep/pf.output[, , 2]
-        }
-    
-    cor.m.adj[cor.m.adj > 1] <- 1
-    sim.m.adj[sim.m.adj > 1] <- 1
-    
-    cor.adj.sam <- apply(cor.m.adj, 2, mean)
-    sim.adj.sam <- apply(sim.m.adj, 2, mean)
-    
-    cor.adj.sam.CI <- apply(cor.m.adj, 2, 
-        stats::quantile, 
-        prob = c(LCL, UCL),
-        na.rm = ignore.na
-        )
-    sim.adj.sam.CI <- apply(sim.m.adj, 2, 
-        stats::quantile, 
-        prob = c(LCL, UCL),
-        na.rm = ignore.na
-        )
-    
-    corrected <- cbind(cor.adj.sam, sim.adj.sam)
-    corrected.mean <- c(mean(cor.m.adj), mean(sim.m.adj))
-    
-    names(corrected.mean) <- c(cor.measure, sim.measure)
-    xc.stat <- c(mean(corrected[, 1]), 
-        stats::quantile(corrected[, 1], 
-            prob = c(LCL, 0.5, UCL),
+        if(perf.rescale == "scale"){
+            cor.m.adj <- (cor.obs.rep + 1)/2
+            cor.m.adj <- cor.m.adj/((pf.output[, , 1]+1)/2)
+            cor.m.adj <- (cor.m.adj*2)-1
+            
+            sim.m.adj <- sim.obs.rep/pf.output[, , 2]
+            }
+        
+        cor.m.adj[cor.m.adj > 1] <- 1
+        sim.m.adj[sim.m.adj > 1] <- 1
+        
+        cor.adj.sam <- apply(cor.m.adj, 2, mean)
+        sim.adj.sam <- apply(sim.m.adj, 2, mean)
+        
+        cor.adj.sam.CI <- apply(cor.m.adj, 2, 
+            stats::quantile, 
+            prob = c(LCL, UCL),
             na.rm = ignore.na
-            ))
-    yc.stat <- c(mean(corrected[, 2]), 
-        stats::quantile(corrected[, 2], 
-            prob = c(LCL, 0.5, UCL),
+            )
+        sim.adj.sam.CI <- apply(sim.m.adj, 2, 
+            stats::quantile, 
+            prob = c(LCL, UCL),
             na.rm = ignore.na
-            ))
+            )
+        
+        corrected <- cbind(cor.adj.sam, sim.adj.sam)
+        corrected.mean <- c(mean(cor.m.adj), mean(sim.m.adj))
+        
+        names(corrected.mean) <- c(cor.measure, sim.measure)
+        xc.stat <- c(mean(corrected[, 1]), 
+            stats::quantile(corrected[, 1], 
+                prob = c(LCL, 0.5, UCL),
+                na.rm = ignore.na
+                ))
+        yc.stat <- c(mean(corrected[, 2]), 
+            stats::quantile(corrected[, 2], 
+                prob = c(LCL, 0.5, UCL),
+                na.rm = ignore.na
+                ))
     
-    if (length(gp) == 0) {
-        xc.stat <- rbind(xc.stat)
-        yc.stat <- rbind(yc.stat)
-        colnames(xc.stat) <- c("mean", paste(LCL),
-                             "median", paste(UCL))
-        colnames(yc.stat) <- c("mean", paste(LCL),
-                             "median", paste(UCL))
-        rownames(xc.stat) <- "all samples"
-        rownames(yc.stat) <- "all samples"
+        if (length(gp) == 0) {
+            xc.stat <- rbind(xc.stat)
+            yc.stat <- rbind(yc.stat)
+            colnames(xc.stat) <- c("mean", paste(LCL),
+                                 "median", paste(UCL))
+            colnames(yc.stat) <- c("mean", paste(LCL),
+                                 "median", paste(UCL))
+            rownames(xc.stat) <- "all samples"
+            rownames(yc.stat) <- "all samples"
+            }
+        if (length(gp) > 0 & nrow(live) > 1) {
+          statsgp.x1 <- tapply(corrected[, 1], gp, mean)
+          statsgp.x2 <- tapply(corrected[, 1], gp, stats::quantile,
+            prob = c(LCL, 0.5, UCL),
+            na.rm = ignore.na)
+          statsgp.x3 <- cbind(statsgp.x1, matrix(unlist(statsgp.x2),
+            length(levels(gp)), 3, byrow = TRUE))
+          statsgp.y1 <- tapply(corrected[, 2], gp, mean)
+          statsgp.y2 <- tapply(corrected[, 2], gp, stats::quantile,
+            prob = c(LCL, 0.5, UCL),
+            na.rm = ignore.na)
+          statsgp.y3 <- cbind(statsgp.y1, 
+            matrix(unlist(statsgp.y2),
+            length(levels(gp)), 3, byrow = TRUE))
+          xc.stat <- rbind(all.samples = xc.stat, statsgp.x3)
+          yc.stat <- rbind(all.samples = yc.stat, statsgp.y3)
+          colnames(xc.stat) <- c("mean", paste(LCL),
+            "median", paste(UCL))
+          colnames(yc.stat) <- c("mean", paste(LCL),
+            "median", paste(UCL))
+            }
+
+        xc.stat <- as.matrix(xc.stat)
+        yc.stat <- as.matrix(yc.stat)
+        xc.sum <- cbind(
+            corrected[, 1], 
+            t(cor.adj.sam.CI), 
+            perfidest[, 1]
+            )
+        colnames(xc.sum) <- c(
+            paste(cor.measure, ".ADJ", sep = ""), 
+            paste(LCL), paste(UCL), 
+            paste(cor.measure, ".PF", sep = "")
+            )
+        yc.sum <- cbind(
+            corrected[, 2], 
+            t(sim.adj.sam.CI), 
+            perfidest[, 2]
+            )
+        colnames(yc.sum) <- c(
+            paste(sim.measure, ".ADJ", sep = ""),
+            paste(LCL), paste(UCL), 
+            paste(sim.measure, ".PF", sep = "")
+            )
+        
+        if (nrow(live) == 1) {
+            raw.stats <- c(NA, NA)
+            xc.stat <- NA
+            yc.stat <- NA
+            xs.stat <- NA
+            ys.stat <- NA
+            }
         }
-    if (length(gp) > 0 & nrow(live) > 1) {
-      statsgp.x1 <- tapply(corrected[, 1], gp, mean)
-      statsgp.x2 <- tapply(corrected[, 1], gp, stats::quantile,
-        prob = c(LCL, 0.5, UCL),
-        na.rm = ignore.na)
-      statsgp.x3 <- cbind(statsgp.x1, matrix(unlist(statsgp.x2),
-        length(levels(gp)), 3, byrow = TRUE))
-      statsgp.y1 <- tapply(corrected[, 2], gp, mean)
-      statsgp.y2 <- tapply(corrected[, 2], gp, stats::quantile,
-        prob = c(LCL, 0.5, UCL),
-        na.rm = ignore.na)
-      statsgp.y3 <- cbind(statsgp.y1, 
-        matrix(unlist(statsgp.y2),
-        length(levels(gp)), 3, byrow = TRUE))
-      xc.stat <- rbind(all.samples = xc.stat, statsgp.x3)
-      yc.stat <- rbind(all.samples = yc.stat, statsgp.y3)
-      colnames(xc.stat) <- c("mean", paste(LCL),
-        "median", paste(UCL))
-      colnames(yc.stat) <- c("mean", paste(LCL),
-        "median", paste(UCL))
-        }
-    xc.stat <- as.matrix(xc.stat)
-    yc.stat <- as.matrix(yc.stat)
-    xc.sum <- cbind(corrected[, 1], t(cor.adj.sam.CI),
-                         perfidest[, 1])
-    colnames(xc.sum) <- c(paste(cor.measure, ".ADJ", sep = ""),
-                       paste(LCL), paste(UCL), 
-                       paste(cor.measure, ".PF", sep = ""))
-    yc.sum <- cbind(corrected[, 2], t(sim.adj.sam.CI),
-                         perfidest[, 2])
-    colnames(yc.sum) <- c(paste(sim.measure, ".ADJ", sep = ""),
-                       paste(LCL), paste(UCL), 
-                       paste(sim.measure, ".PF", sep = ""))
-    
-    if (nrow(live) == 1) {
-        raw.stats <- c(NA, NA)
-        xc.stat <- NA
-        yc.stat <- NA
-        xs.stat <- NA
-        ys.stat <- NA
-        }
-    }
 
     if (iter < 10) {
         xc.sum <- yc.sum <- xc.stat <- yc.stat <- cor.m.adj <- sim.m.adj <- "NA"
@@ -595,20 +614,32 @@ FidelityEst <- function (
         SSCOR <- SSSIM <- xs.stat <- ys.stat <- ss.cor.rep <- ss.sim.rep <- "NA"
         }
     
-  out1 <- list(x = fid.sam[,1], y = fid.sam[,2], 
-               xc = xc.sum, yc = yc.sum, 
-               xs = SSCOR, ys = SSSIM, 
-               x.stats = raw.x, y.stats = raw.y, 
-               xc.stats = xc.stat, yc.stats = yc.stat,
-               xs.stats = xs.stat, ys.stats = ys.stat, 
-               x.pf.dist = pf.output[, , 1], y.pf.dist = pf.output[, , 2], 
-               xc.dist = cor.m.adj, yc.dist = sim.m.adj, 
-               xs.dist = ss.cor.rep, ys.dist = ss.sim.rep,
-               live = live, dead = dead, 
+  out1 <- list(x = fid.sam[,1], 
+               y = fid.sam[,2], 
+               xc = xc.sum, 
+               yc = yc.sum, 
+               xs = SSCOR, 
+               ys = SSSIM, 
+               x.stats = raw.x, 
+               y.stats = raw.y, 
+               xc.stats = xc.stat, 
+               yc.stats = yc.stat,
+               xs.stats = xs.stat, 
+               ys.stats = ys.stat, 
+               x.pf.dist = pf.output[, , 1], 
+               y.pf.dist = pf.output[, , 2], 
+               xc.dist = cor.m.adj, 
+               yc.dist = sim.m.adj, 
+               xs.dist = ss.cor.rep, 
+               ys.dist = ss.sim.rep,
+               live = live, 
+               dead = dead, 
                gp = gp, 
-               values = list(measures = c(cor.measure, sim.measure),
-                    data.transf = tfsd, remove.double.zeros = rm.zero,
-                    PFiter = iter, SSIter = iter2, min.sam = min.sam)
+               values = list(
+                   measures = c(cor.measure, sim.measure),
+                   data.transf = tfsd, remove.double.zeros = rm.zero,
+                   PFiter = iter, SSIter = iter2, min.sam = min.sam
+                   )
                )
 
     class(out1) <- append(class(out1), "FidelityEst")
