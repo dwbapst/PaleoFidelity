@@ -189,14 +189,38 @@ FidelityEst <- function (
         }
   
     my.cor.F <- function(x, y) {
+        if(is.vector(x)){
+            x <- matrix(x, nrow = 1)
+            }
+        if(is.vector(y)){
+            y <- matrix(y, nrow = 1)
+            }
+        #
         if (rm.zero) {
             if (sum(colSums(rbind(x, y)) == 0) > 0) {
                 good.taxa <- which(colSums(rbind(x, y)) > 0)
-                x <- x[good.taxa, drop = FALSE]
-                y <- y[good.taxa, drop = FALSE]
+                x <- x[, good.taxa, drop = FALSE]
+                y <- y[, good.taxa, drop = FALSE]
                 }
             }
-        stats::cor(x, y, method = cor.measure)
+        #
+        # print(str(x))
+        # checks
+        if(ncol(x) == 1){
+            stop("Only one taxon remains in an assemblage passed for cor.test")
+            }
+        if(ncol(y) == 1){
+            stop("Only one taxon remains in an assemblage passed for cor.test")
+            }
+        # check to make sure there is variation at all
+          # (standard deviation of an assemblage isn't 1)
+        if(all(x == x[1]) | all(x == x[1])){
+            warning("An assemblage passed to cor.test had no variation in taxon abundances")
+            }
+        outCor <- stats::cor(
+            as.vector(x), as.vector(y), 
+            method = cor.measure)
+        return(outCor)
         }
 
     cor.e <- mapply(
@@ -211,6 +235,11 @@ FidelityEst <- function (
         if(all(tfsd != 
                c("total", "total4", "wisconsin", "log", "r4", "none"))){
             stop("tfsd is not an allowed option")
+            }
+        #
+        # note that input for decostand has to be a matrix
+        if(is.vector(input)){
+            input <- matrix(input, nrow=1)
             }
         #
         if (tfsd == "total") {
@@ -234,8 +263,14 @@ FidelityEst <- function (
         if(is.null(out)){
             stop("bad transform")
             }
+        # check
         #if(any(rowSums(out) < 1)){
         #    stop("why are there empty rows in out")}
+        if(anyNA(out)){
+            stop("why are there NAs in out")}
+        if(any(is.nan(out))){
+            stop("why are there NaNs in out")}
+        #
         return(out)
         }
         
@@ -446,17 +481,23 @@ FidelityEst <- function (
 
         FidPerfModel <- function(live, dead) {
             pooled <- live + dead
-            rlive <- as.vector(
+            # these often complain if min counts is 2 rather than 1
+            rlive <- suppressWarnings(
                 vegan::rrarefy(x = pooled, sum(live))
                 )
-            rdead <- as.vector(
+            rdead <- suppressWarnings(
                 vegan::rrarefy(x = pooled, sum(dead))
                 )
-            r.cor.e = my.cor.F(rlive, rdead)
+            r.cor.e = my.cor.F(
+                as.vector(rlive), 
+                as.vector(rdead)
+                )
+            # note that we are passing VECTORS to decostand here
             rx3 <- tfsd_standardize(rlive, tfsd)
             rx4 <- tfsd_standardize(rdead, tfsd)
-
-            r.sim.e = 1 - vegan::vegdist(t(cbind(rx3, rx4)),
+            #
+            r.sim.e = 1 - vegan::vegdist(
+                rbind(rx3, rx4),
                 method = sim.measure)
             return(c(r.cor.e, r.sim.e))
             }
@@ -468,8 +509,9 @@ FidelityEst <- function (
             )
         for (i in 1:iter) {
             for (j in 1:nrow(live)) {
+                # print(j)
                 pf.output[i, j, ] <- FidPerfModel(
-                    rbind(live[j,]), 
+                    rbind(live[j, ]), 
                     rbind(dead[j, ])
                     )
                 }
