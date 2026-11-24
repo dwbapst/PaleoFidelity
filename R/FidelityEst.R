@@ -101,6 +101,9 @@
 #' 
 #' @param ignore.na Should \code{NA}s in the data be ignored for calculating quantiles?  
 #' Probably, if we want to calculate quantiles at all. The default is \code{TRUE}.
+#' 
+#' @param oldMethodPerfect FALSE by default. If enabled (TRUE), then an incorrect method
+#' for calculating perfect fidelity is applied that will cause artefactual estimates.
 #'
 #' @return A list containing the following components:
 #'   \item{x}{Live-dead correlation coefficients for each site}
@@ -166,7 +169,8 @@ FidelityEst <- function (
     rm.zero = TRUE, 
     tfsd = "total",
     perf.rescale = "scale",
-    ignore.na = TRUE
+    ignore.na = TRUE,
+    oldMethodPerfect = FALSE
     ){
     
     out <- FidelitySummary(
@@ -238,7 +242,7 @@ FidelityEst <- function (
             }
         #
         # note that input for decostand has to be a matrix
-        if(is.vector(input)){
+        if(is.vector(input) & !oldMethodPerfect){
             input <- matrix(input, nrow=1)
             }
         #
@@ -279,7 +283,7 @@ FidelityEst <- function (
 
     sim.e <- mapply(
         function(x, y){ 
-            1 - vegan::vegdist(rbind(x, y), method = sim.measure)
+            1 - vegan::vegdist(rbind(x, y), method = sim.measure, na.rm = TRUE)
             }, 
         as.data.frame(t(x3)), 
         as.data.frame(t(x4))
@@ -494,9 +498,14 @@ FidelityEst <- function (
                 as.vector(rlive), 
                 as.vector(rdead)
                 )
-            # note that we are passing VECTORS to decostand here
-            rx3 <- tfsd_standardize(rlive, tfsd)
-            rx4 <- tfsd_standardize(rdead, tfsd)
+            if(oldMethodPerfect & tfsd = "total"){
+                rx3 <- ifelse(rlive > 0, rlive/rlive, 0)
+                rx4 <- ifelse(rdead > 0, rdead/rdead, 0)                
+            }else{
+                # note that we are passing VECTORS to decostand here
+                rx3 <- tfsd_standardize(rlive, tfsd)
+                rx4 <- tfsd_standardize(rdead, tfsd)
+                }
             #
             r.sim.e = 1 - vegan::vegdist(
                 rbind(rx3, rx4),
@@ -549,7 +558,6 @@ FidelityEst <- function (
             cor.m.adj <- (cor.obs.rep + 1)/2
             cor.m.adj <- cor.m.adj/((pf.output[, , 1]+1)/2)
             cor.m.adj <- (cor.m.adj*2)-1
-            
             sim.m.adj <- sim.obs.rep/pf.output[, , 2]
             }
         
