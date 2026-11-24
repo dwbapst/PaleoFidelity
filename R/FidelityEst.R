@@ -498,7 +498,7 @@ FidelityEst <- function (
                 as.vector(rlive), 
                 as.vector(rdead)
                 )
-            if(oldMethodPerfect & tfsd = "total"){
+            if(oldMethodPerfect & tfsd == "total"){
                 rx3 <- ifelse(rlive > 0, rlive/rlive, 0)
                 rx4 <- ifelse(rdead > 0, rdead/rdead, 0)                
             }else{
