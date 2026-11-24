@@ -206,12 +206,12 @@ FidelityEst <- function (
         #
         # print(str(x))
         # checks
-        if(ncol(x) == 1){
-            stop("Only one taxon remains in an assemblage passed for cor.test")
-            }
-        if(ncol(y) == 1){
-            stop("Only one taxon remains in an assemblage passed for cor.test")
-            }
+        #if(ncol(x) == 1){
+        #    stop("Only one taxon remains in an assemblage passed for cor.test")
+        #    }
+        #if(ncol(y) == 1){
+        #    stop("Only one taxon remains in an assemblage passed for cor.test")
+        #    }
         # check to make sure there is variation at all
           # (standard deviation of an assemblage isn't 1)
         if(all(x == x[1]) | all(y == y[1])){
