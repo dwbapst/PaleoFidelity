@@ -214,7 +214,7 @@ FidelityEst <- function (
             }
         # check to make sure there is variation at all
           # (standard deviation of an assemblage isn't 1)
-        if(all(x == x[1]) | all(x == x[1])){
+        if(all(x == x[1]) | all(y == y[1])){
             warning("An assemblage passed to cor.test had no variation in taxon abundances")
             }
         outCor <- stats::cor(
@@ -311,16 +311,18 @@ FidelityEst <- function (
     if (iter2 >= 10) {
     
         fid.subsam <- function(x, y, min) {
+            
             a <- suppressWarnings(vegan::rrarefy(x, sample = min))
             b <- suppressWarnings(vegan::rrarefy(y, sample = min))
+            
             cor.ab <- mapply(
                 function(x, y){
                     my.cor.F(as.vector(x), as.vector(y))
                     }, 
                 as.data.frame(t(a)), 
                 as.data.frame(t(b))
-            )
-            #
+                )
+            
             #if(any(is.na(cor.ab))){
             #    # NAs mainly occur when too few species are sampled, or
             #        # all species are sampled with identical abundance
@@ -332,21 +334,21 @@ FidelityEst <- function (
             #    #            paste0(which(is.na(cor.ab),",")))
             #    }
             #
-            
             #if(any(rowSums(a))<1){
             #    stop("why are there empty rows in a")}
             #if(any(rowSums(b))<1){
             #    stop("why are there empty rows in b")}               
             
-            c <- tfsd_standardize(x, tfsd)
-            d <- tfsd_standardize(y, tfsd)
+            c <- tfsd_standardize(a, tfsd)
+            d <- tfsd_standardize(b, tfsd)
             
             sim.ab <- mapply(
               function(x, y){
                 1 - vegan::vegdist(
                     rbind(x,y), 
-                    method = sim.measure)
-              }, 
+                    method = sim.measure
+                    )
+                }, 
               as.data.frame(t(c)), 
               as.data.frame(t(d))
             )
